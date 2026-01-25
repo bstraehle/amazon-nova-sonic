@@ -54,6 +54,12 @@ ${voiceConfig.additionalPrompt}
 
     // Start response stream
     while (true) {
+      // End session after 3 minutes
+      if (Date.now() - startedAt >= 3 * 60 * 1000) {
+        console.log('Session limit (3 minutes) reached. Ending session.');
+        break;
+      }
+
       console.log('starting/resuming a session');
       const chatHistory = await messageRepository.getMessages(sessionId);
       const stream = new NovaStream(sessionId, voiceId, system, tools, mcpTools);

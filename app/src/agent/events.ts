@@ -156,6 +156,12 @@ export const processResponseStream = async (
   const toolUses: { [key: string]: { toolUseId: string; content: string; toolName: string } } = {};
 
   for await (const event of stream.iterator) {
+    // Hard 3-minute session limit
+    if (Date.now() - invokedAt >= 3 * 60 * 1000) {
+      console.log('Session limit (3 minutes) reached. Ending session.');
+      return { state: 'success' };
+    }
+
     try {
       if (event.chunk?.bytes) {
         const textResponse = new TextDecoder().decode(event.chunk.bytes);
