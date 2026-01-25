@@ -129,7 +129,22 @@ export class Auth extends Construct {
     new CfnManagedLoginBranding(this, 'Branding', {
       userPoolId: this.userPool.userPoolId,
       clientId: client.userPoolClientId,
-      useCognitoProvidedValues: true,
+      useCognitoProvidedValues: false,
+      settings: {
+        components: {
+          pageBackground: {
+            image: {
+              enabled: false,
+            },
+            lightMode: {
+              color: 'ffffffff',
+            },
+            darkMode: {
+              color: '000000ff',
+            },
+          },
+        },
+      },
     });
 
     new CfnOutput(this, 'UserPoolId', { value: userPool.userPoolId });
