@@ -2,6 +2,8 @@
 
 This is a sample implementation for deploying a Nova Sonic application using serverless AWS services.
 
+<!-- Test comment for dummy PR -->
+
 ![Architecture](./docs/imgs/architecture.png)
 
 ## Key Features
