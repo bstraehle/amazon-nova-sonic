@@ -2,15 +2,17 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   output: 'standalone',
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   experimental: {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
     serverActions: {
-      allowedOrigins: ['localhost:3005', process.env.ALLOWED_ORIGIN_HOST!],
+      allowedOrigins: [
+        'localhost:3005',
+        ...(process.env.ALLOWED_ORIGIN_HOST
+          ? [process.env.ALLOWED_ORIGIN_HOST]
+          : []),
+      ],
     },
   },
   typescript: {
