@@ -6,12 +6,12 @@ import { BedrockAgentCoreClient, InvokeAgentRuntimeCommand } from '@aws-sdk/clie
 import { authActionClient } from '@/lib/safe-action';
 import { EmptyMcpConfig } from '@/common/schemas';
 import { defaultSystemPrompt } from '@/lib/systemPrompt';
-import { englishVoices } from '@/lib/voices';
+import { usEnglishVoices } from '@/lib/voices';
 
 const agentCore = new BedrockAgentCoreClient({});
 
 const startNovaSonicSessionSchema = z.object({
-  voiceId: z.string().refine((id) => englishVoices.some((voice) => voice.id === id), 'Unsupported voice'),
+  voiceId: z.string().refine((id) => usEnglishVoices.some((voice) => voice.id === id), 'Unsupported voice'),
 });
 
 export const startNovaSonicSession = authActionClient

@@ -18,9 +18,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import BrandMark from '@/components/brand-mark';
 import Messages from '@/components/messages';
-import ThemeToggle from '@/components/theme-toggle';
 import TranscriptActions from '@/components/transcript-actions';
-import { englishVoices } from '@/lib/voices';
+import { usEnglishVoices } from '@/lib/voices';
 import { cn } from '@/lib/utils';
 import type { AudioSource, SessionEndKind } from '../useSpeechToSpeech';
 import type { MicrophonePermission } from '../useSpeechToSpeech/useMicrophonePermission';
@@ -160,7 +159,7 @@ export default function VoiceChatView({
         <SelectValue placeholder="Select voice" />
       </SelectTrigger>
       <SelectContent>
-        {englishVoices.map((voice) => (
+        {usEnglishVoices.map((voice) => (
           <SelectItem key={voice.id} value={voice.id}>
             {voice.label} ({voice.language}, {voice.gender})
           </SelectItem>
@@ -195,7 +194,6 @@ export default function VoiceChatView({
                 <span className="hidden md:inline">History</span>
               </Link>
             )}
-            <ThemeToggle />
             <Link
               href="/api/auth/sign-out"
               aria-label="Sign out"

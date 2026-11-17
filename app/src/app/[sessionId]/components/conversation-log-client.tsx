@@ -9,7 +9,6 @@ import { Message } from '@/common/messageRepository';
 import { Session } from '@/common/sessionRepository';
 import ConversationList from '@/components/conversation-list';
 import Messages from '@/components/messages';
-import ThemeToggle from '@/components/theme-toggle';
 import TranscriptActions from '@/components/transcript-actions';
 import { useIsHydrated } from '@/lib/useIsHydrated';
 
@@ -78,15 +77,12 @@ export default function ConversationLogClient({ session, messages, conversations
                 {isHydrated ? new Date(session.createdAt).toLocaleString() : ' '} - Session ID: {session.sessionId}
               </p>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <ThemeToggle />
-              <Link href="/">
-                <Button variant="outline" size="sm">
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Session
-                </Button>
-              </Link>
-            </div>
+            <Link href="/">
+              <Button variant="outline" size="sm">
+                <Plus className="w-4 h-4 mr-2" />
+                New Session
+              </Button>
+            </Link>
           </div>
         </div>
 
