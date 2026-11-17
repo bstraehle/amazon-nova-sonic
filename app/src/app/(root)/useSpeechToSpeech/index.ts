@@ -3,7 +3,7 @@ import { events, EventsChannel } from 'aws-amplify/data';
 import { AudioPlayer } from './lib/AudioPlayer';
 import { AudioRecorder } from './lib/AudioRecorder';
 import useChatHistory from './useChatHistory';
-import { DispatchEventParams, END_REASON_TIME_LIMIT, McpConfig, SpeechToSpeechEventSchema } from '@/common/schemas';
+import { DispatchEventParams, END_REASON_TIME_LIMIT, SpeechToSpeechEventSchema } from '@/common/schemas';
 import { Amplify } from 'aws-amplify';
 import { decodeJWT } from 'aws-amplify/auth';
 import { useRouter } from 'next/navigation';
@@ -89,7 +89,6 @@ export const useSpeechToSpeech = (userId: string) => {
   const {
     clear,
     messages,
-    setupSystemPrompt,
     onTextStart,
     onTextOutput,
     onTextStop,
@@ -100,7 +99,6 @@ export const useSpeechToSpeech = (userId: string) => {
   const [isMuted, setIsMuted] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionEnd, setSessionEnd] = useState<SessionEndKind | null>(null);
-  const systemPromptRef = useRef<string>('');
   const audioPlayerRef = useRef<AudioPlayer | null>(null);
   const audioRecorderRef = useRef<AudioRecorder | null>(null);
   const channelRef = useRef<EventsChannel | null>(null);
@@ -296,11 +294,9 @@ export const useSpeechToSpeech = (userId: string) => {
   const startRecording = async () => {
     const audioPlayer = audioPlayerRef.current;
     const audioRecorder = audioRecorderRef.current;
-    if (!audioPlayer || !audioRecorder || !systemPromptRef.current) {
+    if (!audioPlayer || !audioRecorder) {
       throw new Error('ref not set!');
     }
-
-    setupSystemPrompt(systemPromptRef.current);
 
     await audioPlayer.start();
 
@@ -335,7 +331,7 @@ export const useSpeechToSpeech = (userId: string) => {
     }
   };
 
-  const startSession = async (voiceId: string, systemPrompt: string, mcpConfig: McpConfig) => {
+  const startSession = async (voiceId: string) => {
     if (isActive || isLoading) {
       return;
     }
@@ -345,8 +341,7 @@ export const useSpeechToSpeech = (userId: string) => {
     readyHandledRef.current = false;
     micErrorRef.current = null;
     setIsLoading(true);
-    systemPromptRef.current = systemPrompt;
-    executeSpeechToSpeech({ systemPrompt, voiceId, mcpConfig });
+    executeSpeechToSpeech({ voiceId });
   };
 
   const toggleMute = useCallback(() => {

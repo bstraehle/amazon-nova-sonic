@@ -34,21 +34,6 @@ const useChatHistory = () => {
     eventMessageCache.current = {};
   };
 
-  const setupSystemPrompt = (prompt: string) => {
-    setEventMessages([
-      [
-        {
-          id: 'system',
-          role: 'system',
-          content: prompt,
-          generationStage: 'FINAL',
-          stopReason: 'END_TURN',
-          timestamp: Date.now(),
-        },
-      ],
-    ]);
-  };
-
   // Since AppSync Events are not FIFO, the order of events may be switched.
   // For example, onTextOutput might come before onTextStart.
   // This is a process where if a new message has the same role as the previous message, the messages are combined.
@@ -72,6 +57,10 @@ const useChatHistory = () => {
         const lastEventMessagesIndex = prevEventMessages.length - 1;
         const lastEventMessages = prevEventMessages[lastEventMessagesIndex];
         const eventMessagesWithoutLast = prevEventMessages.slice(0, lastEventMessagesIndex);
+
+        if (!lastEventMessages) {
+          return [[newEntity]];
+        }
 
         if (lastEventMessages[0].role === newEntity.role) {
           if (newEntity.generationStage === 'FINAL') {
@@ -119,10 +108,12 @@ const useChatHistory = () => {
     const res: UnrecordedMessage[] = [];
 
     for (const ms of eventMessages) {
-      if (interrupted) {
+      const mergeWithPrevious = interrupted && res.length > 0;
+      interrupted = false;
+
+      if (mergeWithPrevious) {
         res[res.length - 1].content =
           res[res.length - 1].content + ' ' + ms.map((m: EventMessage) => m.content).join(' ');
-        interrupted = false;
       } else {
         const interruptedIndex = ms.findIndex((m: EventMessage) => m.stopReason === 'INTERRUPTED');
 
@@ -170,7 +161,6 @@ const useChatHistory = () => {
   return {
     clear,
     messages,
-    setupSystemPrompt,
     onTextStart,
     onTextOutput,
     onTextStop,
