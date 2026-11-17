@@ -8,6 +8,7 @@ export type UnrecordedMessage = {
   trace?: string;
   // extraData?: ExtraData[];
   llmType?: string;
+  timestamp?: number;
   // metadata?: Metadata;
 };
 
@@ -17,6 +18,7 @@ type EventMessage = {
   content: string;
   generationStage: string;
   stopReason: string;
+  timestamp: number;
 };
 
 type EventMessageCacheEntity = Partial<EventMessage> & {
@@ -41,6 +43,7 @@ const useChatHistory = () => {
           content: prompt,
           generationStage: 'FINAL',
           stopReason: 'END_TURN',
+          timestamp: Date.now(),
         },
       ],
     ]);
@@ -59,6 +62,7 @@ const useChatHistory = () => {
       content: tmpEventMessage.content ?? currentCacheEntity?.content,
       generationStage: tmpEventMessage.generationStage ?? currentCacheEntity?.generationStage,
       stopReason: tmpEventMessage.stopReason ?? currentCacheEntity?.stopReason,
+      timestamp: currentCacheEntity?.timestamp ?? Date.now(),
     };
 
     eventMessageCache.current[tmpEventMessage.id] = newEntity;
@@ -131,11 +135,13 @@ const useChatHistory = () => {
               .slice(0, interruptedIndex)
               .map((m: EventMessage) => m.content)
               .join(' '),
+            timestamp: ms[0].timestamp,
           });
         } else {
           res.push({
             role: ms[0].role as 'system' | 'user' | 'assistant',
             content: ms.map((m: EventMessage) => m.content).join(' '),
+            timestamp: ms[0].timestamp,
           });
         }
       }

@@ -18,7 +18,6 @@ export class AudioPlayer {
   }
 
   async start() {
-    console.log(`AudioPlayer.start${new Error().stack}`);
     this.audioContext = new AudioContext({ sampleRate: 24000 });
     this.analyser = this.audioContext.createAnalyser();
     this.analyser.fftSize = 512;
@@ -26,7 +25,6 @@ export class AudioPlayer {
     const AudioPlayerWorkletUrl = new URL('/AudioPlayerProcessor.worklet.js', window.location.origin).toString();
     // Chrome caches worklet code more aggressively, so add a nocache parameter to make sure we get the latest
     await this.audioContext.audioWorklet.addModule(AudioPlayerWorkletUrl); // + "?nocache=" + Date.now());
-    console.log(this.audioContext);
     this.workletNode = new AudioWorkletNode(this.audioContext, 'audio-player-processor');
     this.workletNode.connect(this.analyser);
     this.analyser.connect(this.audioContext.destination);
