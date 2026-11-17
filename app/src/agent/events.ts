@@ -10,10 +10,9 @@ import { MessageRepository } from '@/common/messageRepository';
 import { NovaStream } from './nova-stream';
 import './amplify';
 import { AudioEventSequencer } from '@/common/events';
+import { AudioOutputBatcher } from './audio-output-batcher';
 
-const MIN_AUDIO_OUTPUT_QUEUE_SIZE = 10;
-const MAX_AUDIO_OUTPUT_PER_BATCH = 20;
-let audioOutputQueue: string[] = [];
+let audioOutputBatcher = new AudioOutputBatcher();
 let unprocessedClientEvents: SpeechToSpeechEvent[] = [];
 let audioOutputSequence = 0;
 
@@ -32,22 +31,9 @@ export const dispatchEvent = async (channel: EventsChannel, params: DispatchEven
 // Send Nova's audio output to frontend in batches
 // Without batching, playback tends to be choppy on the frontend
 const enqueueAudioOutput = async (channel: EventsChannel, audioOutput: string) => {
-  audioOutputQueue.push(audioOutput);
+  const chunksToProcess = audioOutputBatcher.push(audioOutput);
 
-  if (audioOutputQueue.length > MIN_AUDIO_OUTPUT_QUEUE_SIZE) {
-    const chunksToProcess: string[] = [];
-
-    let processedChunks = 0;
-
-    while (audioOutputQueue.length > 0 && processedChunks < MAX_AUDIO_OUTPUT_PER_BATCH) {
-      const chunk = audioOutputQueue.shift();
-
-      if (chunk) {
-        chunksToProcess.push(chunk);
-        processedChunks += 1;
-      }
-    }
-
+  if (chunksToProcess) {
     await dispatchEvent(channel, {
       event: 'audioOutput',
       data: { blobs: chunksToProcess, sequence: audioOutputSequence },
@@ -57,14 +43,7 @@ const enqueueAudioOutput = async (channel: EventsChannel, audioOutput: string) =
 };
 
 const forcePublishAudioOutput = async (channel: EventsChannel) => {
-  const chunksToProcess = [];
-
-  while (audioOutputQueue.length > 0) {
-    const chunk = audioOutputQueue.shift();
-    if (chunk) {
-      chunksToProcess.push(chunk);
-    }
-  }
+  const chunksToProcess = audioOutputBatcher.flush();
 
   await dispatchEvent(channel, {
     event: 'audioOutput',
@@ -74,7 +53,7 @@ const forcePublishAudioOutput = async (channel: EventsChannel) => {
 };
 
 export const initializeSubscription = async (channelPath: string, context: { stream?: NovaStream }) => {
-  audioOutputQueue = [];
+  audioOutputBatcher = new AudioOutputBatcher();
   unprocessedClientEvents = [];
   audioOutputSequence = 0;
   const channel = await events.connect(channelPath);

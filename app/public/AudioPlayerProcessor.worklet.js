@@ -1,4 +1,10 @@
 // This file is copied from https://github.com/aws-samples/amazon-nova-samples/blob/main/speech-to-speech/sample-codes/websocket-nodejs/public/src/lib/play/AudioPlayerProcessor.worklet.js
+const SAMPLE_RATE = 24000;
+const DEFAULT_INITIAL_BUFFER_LENGTH = SAMPLE_RATE * 0.3;
+const MAX_INITIAL_BUFFER_LENGTH = SAMPLE_RATE;
+const FLUSH_AFTER_IDLE_FRAMES = SAMPLE_RATE * 0.2;
+const UNDERRUN_WINDOW_FRAMES = SAMPLE_RATE * 0.5;
+
 // Audio sample buffer to minimize reallocations
 class ExpandableBuffer {
   constructor() {
@@ -8,7 +14,9 @@ class ExpandableBuffer {
     this.writeIndex = 0;
     this.underflowedSamples = 0;
     this.isInitialBuffering = true;
-    this.initialBufferLength = 24000; // One second
+    this.initialBufferLength = DEFAULT_INITIAL_BUFFER_LENGTH;
+    this.idleFrames = 0;
+    this.framesSinceDry = Infinity;
     this.lastWriteTime = 0;
   }
 
@@ -23,6 +31,11 @@ class ExpandableBuffer {
 
   write(samples) {
     this.logTimeElapsedSinceLastWrite();
+    if (this.isInitialBuffering && this.framesSinceDry < UNDERRUN_WINDOW_FRAMES) {
+      this.initialBufferLength = Math.min(MAX_INITIAL_BUFFER_LENGTH, this.initialBufferLength * 2);
+    }
+    this.framesSinceDry = Infinity;
+    this.idleFrames = 0;
     if (this.writeIndex + samples.length <= this.buffer.length) {
       // Enough space to append the new samples
     } else {
@@ -54,6 +67,13 @@ class ExpandableBuffer {
 
   read(destination) {
     let copyLength = 0;
+    const wasPlaying = !this.isInitialBuffering;
+    if (this.isInitialBuffering && this.writeIndex > this.readIndex) {
+      this.idleFrames += destination.length;
+      if (this.idleFrames >= FLUSH_AFTER_IDLE_FRAMES) {
+        this.isInitialBuffering = false;
+      }
+    }
     if (!this.isInitialBuffering) {
       // Only start to play audio after we've built up some initial cushion
       copyLength = Math.min(destination.length, this.writeIndex - this.readIndex);
@@ -72,12 +92,16 @@ class ExpandableBuffer {
     if (copyLength === 0) {
       // Ran out of audio, so refill the buffer to the initial length before playing more
       this.isInitialBuffering = true;
+      this.framesSinceDry = wasPlaying ? 0 : this.framesSinceDry + destination.length;
     }
   }
 
   clearBuffer() {
     this.readIndex = 0;
     this.writeIndex = 0;
+    this.isInitialBuffering = true;
+    this.idleFrames = 0;
+    this.framesSinceDry = Infinity;
   }
 }
 

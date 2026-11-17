@@ -8,7 +8,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,mjs,mts}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mjs,mts}\"",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "node --import tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@aws-amplify/adapter-nextjs": "^1.7.1",
