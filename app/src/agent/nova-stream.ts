@@ -80,7 +80,7 @@ export class NovaStream {
           next: async (): Promise<IteratorResult<InvokeModelWithBidirectionalStreamInput>> => {
             try {
               while (eventQueue.length === 0 && this.isActive) {
-                await new Promise((s) => setTimeout(s, 100));
+                await new Promise((s) => setTimeout(s, 10));
               }
 
               const nextEvent = eventQueue.shift();

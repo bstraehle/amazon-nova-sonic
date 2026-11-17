@@ -12,7 +12,7 @@ import { useAction } from 'next-safe-action/hooks';
 import { AudioEventSequencer } from '@/common/events';
 
 const NAMESPACE = process.env.NEXT_PUBLIC_EVENT_BUS_NAMESPACE!;
-const MIN_AUDIO_CHUNKS_PER_BATCH = 10;
+const MIN_AUDIO_CHUNKS_PER_BATCH = 3;
 const MAX_AUDIO_CHUNKS_PER_BATCH = 20;
 const READY_TIMEOUT_MS = 45 * 1000;
 
