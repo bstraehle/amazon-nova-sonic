@@ -1,6 +1,11 @@
 import { events, EventsChannel } from 'aws-amplify/data';
 import { ModelStreamErrorException } from '@aws-sdk/client-bedrock-runtime';
-import { DispatchEventParams, SpeechToSpeechEvent, SpeechToSpeechEventSchema } from '@/common/schemas';
+import {
+  DispatchEventParams,
+  END_REASON_TIME_LIMIT,
+  SpeechToSpeechEvent,
+  SpeechToSpeechEventSchema,
+} from '@/common/schemas';
 import { MessageRepository } from '@/common/messageRepository';
 import { NovaStream } from './nova-stream';
 import './amplify';
@@ -146,7 +151,7 @@ export const processResponseStream = async (
   stream: NovaStream,
   sessionId: string,
   invokedAt: number
-): Promise<{ state: 'success' | 'error' | 'resume' }> => {
+): Promise<{ state: 'success' | 'error' | 'resume'; reason?: string }> => {
   const messageRepository = new MessageRepository();
 
   const startedAt = Date.now();
@@ -159,7 +164,7 @@ export const processResponseStream = async (
     // Hard 3-minute session limit
     if (Date.now() - invokedAt >= 3 * 60 * 1000) {
       console.log('Session limit (3 minutes) reached. Ending session.');
-      return { state: 'success' };
+      return { state: 'success', reason: END_REASON_TIME_LIMIT };
     }
 
     try {

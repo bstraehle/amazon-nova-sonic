@@ -154,7 +154,8 @@ const useChatHistory = () => {
     if (lastEventMessages[0].role === 'assistant') {
       const hasSpeculative =
         lastEventMessages.filter((e: EventMessage) => e.generationStage === 'SPECULATIVE').length > 0;
-      return hasSpeculative;
+      const wasInterrupted = lastEventMessages.some((e: EventMessage) => e.stopReason === 'INTERRUPTED');
+      return hasSpeculative && !wasInterrupted;
     }
 
     return false;

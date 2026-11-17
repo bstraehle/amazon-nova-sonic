@@ -3,7 +3,7 @@ import { events, EventsChannel } from 'aws-amplify/data';
 import { AudioPlayer } from './lib/AudioPlayer';
 import { AudioRecorder } from './lib/AudioRecorder';
 import useChatHistory from './useChatHistory';
-import { DispatchEventParams, McpConfig, SpeechToSpeechEventSchema } from '@/common/schemas';
+import { DispatchEventParams, END_REASON_TIME_LIMIT, McpConfig, SpeechToSpeechEventSchema } from '@/common/schemas';
 import { Amplify } from 'aws-amplify';
 import { decodeJWT } from 'aws-amplify/auth';
 import { useRouter } from 'next/navigation';
@@ -14,6 +14,7 @@ import { AudioEventSequencer } from '@/common/events';
 const NAMESPACE = process.env.NEXT_PUBLIC_EVENT_BUS_NAMESPACE!;
 const MIN_AUDIO_CHUNKS_PER_BATCH = 10;
 const MAX_AUDIO_CHUNKS_PER_BATCH = 20;
+const READY_TIMEOUT_MS = 45 * 1000;
 
 const tokenCache: { updatedAt: number; token: string } = { updatedAt: 0, token: '' };
 let audioInputSequence = 0;
@@ -81,7 +82,10 @@ const base64ToFloat32Array = (base64String: string) => {
   }
 };
 
-export const useSpeechToSpeech = (userId: string, onSessionComplete: (endReason: string) => void) => {
+export type SessionEndKind = 'user' | 'timeLimit' | 'server' | 'error';
+export type AudioSource = 'input' | 'output';
+
+export const useSpeechToSpeech = (userId: string) => {
   const {
     clear,
     messages,
@@ -94,11 +98,16 @@ export const useSpeechToSpeech = (userId: string, onSessionComplete: (endReason:
   const [isActive, setIsActive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionEnd, setSessionEnd] = useState<SessionEndKind | null>(null);
   const systemPromptRef = useRef<string>('');
   const audioPlayerRef = useRef<AudioPlayer | null>(null);
   const audioRecorderRef = useRef<AudioRecorder | null>(null);
   const channelRef = useRef<EventsChannel | null>(null);
   const audioInputQueue = useRef<string[]>([]);
+  const readyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const readyHandledRef = useRef(false);
+  const micErrorRef = useRef<string | null>(null);
   const [errorMessages, setErrorMessages] = useState<string[]>([]);
   const router = useRouter();
   console.log(`re-rendered ${JSON.stringify({ isActive, isLoading })}`);
@@ -106,29 +115,62 @@ export const useSpeechToSpeech = (userId: string, onSessionComplete: (endReason:
   const { execute: executeSpeechToSpeech } = useAction(startNovaSonicSession, {
     onSuccess: async (res) => {
       console.log('Speech-to-speech Lambda invoked successfully:', res);
-      await connectToAppSync(res.data.sessionId);
-      await initAudio();
+      try {
+        setSessionId(res.data.sessionId);
+        await connectToAppSync(res.data.sessionId);
+        await initAudio();
+        if (!readyHandledRef.current) {
+          readyTimerRef.current = setTimeout(
+            () => failStart('The voice assistant did not respond. Please try again.'),
+            READY_TIMEOUT_MS
+          );
+        }
+      } catch (e) {
+        console.error('Failed to connect to the session:', e);
+        failStart('Could not connect to the voice assistant. Please try again.');
+      }
     },
     onError: (error) => {
       console.error('Failed to invoke speech-to-speech Lambda:', error);
+      failStart('Could not start the voice chat. Please try again.');
     },
   });
-
-  const resetState = () => {
-    console.log('resetState');
-    setIsLoading(false);
-    setIsActive(false);
-    audioRecorderRef.current = null;
-    audioPlayerRef.current = null;
-    channelRef.current = null;
-    audioInputQueue.current = [];
-  };
 
   const dispatchEvent = async (channel: EventsChannel, params: DispatchEventParams) => {
     await channel.publish({
       direction: 'ctob',
       ...params,
     });
+  };
+
+  const clearReadyTimer = () => {
+    if (readyTimerRef.current) {
+      clearTimeout(readyTimerRef.current);
+      readyTimerRef.current = null;
+    }
+  };
+
+  const teardown = async () => {
+    clearReadyTimer();
+    const channel = channelRef.current;
+    channelRef.current = null;
+    await stopRecording();
+    setIsLoading(false);
+    setIsMuted(false);
+
+    if (channel) {
+      try {
+        await dispatchEvent(channel, { event: 'terminateSession', data: {} });
+      } catch (e) {
+        console.error('Failed to send terminateSession:', e);
+      }
+      channel.close();
+    }
+  };
+
+  const failStart = async (message: string) => {
+    setErrorMessages((prev) => [...prev, message]);
+    await teardown();
   };
 
   const initAudio = async () => {
@@ -150,11 +192,7 @@ export const useSpeechToSpeech = (userId: string, onSessionComplete: (endReason:
       // You can add UI notification here if needed
       if (error.type === 'NotAllowedError' || error.type === 'PermissionDeniedError') {
         // Handle microphone permission denied specifically
-        resetState();
-        setErrorMessages([
-          ...errorMessages,
-          'The microphone is not available. Please grant permission to use the microphone.',
-        ]);
+        micErrorRef.current = 'The microphone is not available. Please grant permission to use the microphone.';
       }
     });
 
@@ -162,6 +200,9 @@ export const useSpeechToSpeech = (userId: string, onSessionComplete: (endReason:
   };
 
   const processAudioInput = async () => {
+    const channel = channelRef.current;
+    if (!channel) return;
+
     if (audioInputQueue.current.length > MIN_AUDIO_CHUNKS_PER_BATCH) {
       const chunksToProcess: string[] = [];
 
@@ -176,7 +217,7 @@ export const useSpeechToSpeech = (userId: string, onSessionComplete: (endReason:
         }
       }
 
-      await dispatchEvent(channelRef.current!, {
+      await dispatchEvent(channel, {
         event: 'audioInput',
         data: { blobs: chunksToProcess, sequence: audioInputSequence },
       });
@@ -212,17 +253,30 @@ export const useSpeechToSpeech = (userId: string, onSessionComplete: (endReason:
         if (event.direction !== 'btoc') return;
 
         if (event.event === 'ready') {
+          if (readyHandledRef.current) return;
+          readyHandledRef.current = true;
+          clearReadyTimer();
+
           startRecording()
-            .then(() => {
+            .then((started) => {
+              if (!started) return;
               setIsActive(true);
               setIsLoading(false);
             })
             .catch((e) => {
               console.log(e);
-              closeSession(e.message);
+              failStart(micErrorRef.current ?? 'Could not start audio. Please try again.');
             });
         } else if (event.event === 'end') {
-          closeSession(event.data.reason);
+          const reason = event.data.reason;
+          if (reason === END_REASON_TIME_LIMIT) {
+            closeSession('timeLimit');
+          } else if (reason) {
+            console.error('Session ended with an error:', reason);
+            closeSession('error');
+          } else {
+            closeSession('server');
+          }
         } else if (event.event === 'audioOutput' && audioPlayerRef.current) {
           sequencer.next(event.data.blobs, event.data.sequence);
         } else if (event.event === 'textStart') {
@@ -244,28 +298,33 @@ export const useSpeechToSpeech = (userId: string, onSessionComplete: (endReason:
     });
   };
 
-  let isRecording = false;
   const startRecording = async () => {
-    if (isRecording) return;
-    isRecording = true;
-
     console.log(`startRecording`);
-    if (!audioPlayerRef.current || !audioRecorderRef.current || !systemPromptRef.current) {
+    const audioPlayer = audioPlayerRef.current;
+    const audioRecorder = audioRecorderRef.current;
+    if (!audioPlayer || !audioRecorder || !systemPromptRef.current) {
       throw new Error('ref not set!');
     }
 
     setupSystemPrompt(systemPromptRef.current);
 
-    await audioPlayerRef.current.start();
+    await audioPlayer.start();
 
     // Start recording using the AudioRecorder and check for success
-    const success = await audioRecorderRef.current.start();
+    const success = await audioRecorder.start();
 
     if (!success) {
       throw new Error('audioRecorder failed to start!');
     }
 
+    if (!channelRef.current) {
+      audioRecorder.stop();
+      audioPlayer.stop();
+      return false;
+    }
+
     processAudioInput();
+    return true;
   };
 
   const stopRecording = async () => {
@@ -288,6 +347,10 @@ export const useSpeechToSpeech = (userId: string, onSessionComplete: (endReason:
       return;
     }
     clear();
+    setSessionId(null);
+    setSessionEnd(null);
+    readyHandledRef.current = false;
+    micErrorRef.current = null;
     setIsLoading(true);
     systemPromptRef.current = systemPrompt;
     executeSpeechToSpeech({ systemPrompt, voiceId, mcpConfig });
@@ -302,17 +365,18 @@ export const useSpeechToSpeech = (userId: string, onSessionComplete: (endReason:
     return false;
   }, []);
 
-  const closeSession = useCallback(
-    async (reason?: string) => {
-      console.log('closeSession');
-      await stopRecording();
-      await dispatchEvent(channelRef.current!, { event: 'terminateSession', data: {} });
-      channelRef.current?.close();
+  const getAnalyser = useCallback((source: AudioSource): AnalyserNode | null => {
+    const node = source === 'input' ? audioRecorderRef.current?.analyser : audioPlayerRef.current?.analyser;
+    return node ?? null;
+  }, []);
 
-      setIsActive(false);
-      setIsLoading(false);
-      setIsMuted(false);
-      onSessionComplete(reason ?? '');
+  const closeSession = useCallback(
+    async (kind: SessionEndKind = 'user') => {
+      console.log('closeSession');
+      if (!channelRef.current) return;
+
+      setSessionEnd(kind);
+      await teardown();
       router.refresh();
     },
     [channelRef, setIsActive, setIsLoading]
@@ -324,9 +388,12 @@ export const useSpeechToSpeech = (userId: string, onSessionComplete: (endReason:
     isLoading,
     isAssistantSpeaking,
     isMuted,
+    sessionId,
+    sessionEnd,
     startSession,
     closeSession,
     toggleMute,
+    getAnalyser,
     errorMessages,
   };
 };

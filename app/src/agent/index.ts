@@ -7,7 +7,7 @@ import { dispatchEvent, processResponseStream, initializeSubscription } from './
 import { voiceConfigurations } from '@/lib/voices';
 import { getWeatherTool } from './tools/weather';
 import { closeMcpServers, getMcpToolSpecs } from '@/agent/tools/mcp';
-import { McpConfig } from '@/common/schemas';
+import { END_REASON_TIME_LIMIT, McpConfig } from '@/common/schemas';
 
 export const main = async (
   sessionId: string,
@@ -57,6 +57,7 @@ ${voiceConfig.additionalPrompt}
       // End session after 3 minutes
       if (Date.now() - startedAt >= 3 * 60 * 1000) {
         console.log('Session limit (3 minutes) reached. Ending session.');
+        endReason = END_REASON_TIME_LIMIT;
         break;
       }
 
@@ -69,6 +70,7 @@ ${voiceConfig.additionalPrompt}
       stream.close();
       if (res.state == 'success') {
         console.log(`session finished with state ${res.state}`);
+        endReason = res.reason ?? '';
         break;
       }
       // resume the session in the next loop

@@ -88,4 +88,6 @@ export const mcpConfigSchema = z.object({
 });
 
 export type McpConfig = z.infer<typeof mcpConfigSchema>;
+
+export const END_REASON_TIME_LIMIT = 'SESSION_TIME_LIMIT';
 export const EmptyMcpConfig: McpConfig = { mcpServers: {} };

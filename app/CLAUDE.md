@@ -102,3 +102,11 @@ When implementing server-side functionality in the webapp, always use Next.js se
      execute({ param1: 'value', param2: 42 });
    };
    ```
+
+### Verification
+
+Run from `app/` after `npm ci`:
+
+- `npx tsc --noEmit`
+- `npm run lint`
+- `npm run build` needs the placeholder auth variables that `Dockerfile` sets: `USER_POOL_CLIENT_ID=dummy`, `USER_POOL_ID=dummy`, `AMPLIFY_APP_ORIGIN=https://dummy.example.com`, `COGNITO_DOMAIN=dummy.example.com`

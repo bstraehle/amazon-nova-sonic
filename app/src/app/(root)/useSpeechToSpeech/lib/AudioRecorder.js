@@ -58,10 +58,14 @@ export class AudioRecorder {
 
         // Don't throw, just return false to indicate failure
         console.error('Microphone access error:', errorType, errorMessage);
+        this.cleanup();
         return false;
       }
 
       this.sourceNode = this.audioContext.createMediaStreamSource(this.audioStream);
+      this.analyser = this.audioContext.createAnalyser();
+      this.analyser.fftSize = 512;
+      this.sourceNode.connect(this.analyser);
 
       // Add the audio worklet module
       try {
@@ -140,6 +144,14 @@ export class AudioRecorder {
       }
     }
 
+    if (ObjectExt.exists(this.analyser)) {
+      try {
+        this.analyser.disconnect();
+      } catch (e) {
+        console.error('Error disconnecting analyser node:', e);
+      }
+    }
+
     if (ObjectExt.exists(this.audioStream)) {
       try {
         this.audioStream.getTracks().forEach((track) => track.stop());
@@ -160,6 +172,7 @@ export class AudioRecorder {
     this.audioContext = null;
     this.audioStream = null;
     this.sourceNode = null;
+    this.analyser = null;
     this.workletNode = null;
   }
 
