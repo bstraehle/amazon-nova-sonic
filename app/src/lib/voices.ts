@@ -122,4 +122,4 @@ export const voices: VoiceConfig[] = [
 
 export const voiceConfigurations: Record<string, VoiceConfig> = Object.fromEntries(voices.map((v) => [v.id, v]));
 
-export const englishVoices = voices.filter((v) => v.language.endsWith('English'));
+export const usEnglishVoices = voices.filter((v) => v.language === 'US English');
