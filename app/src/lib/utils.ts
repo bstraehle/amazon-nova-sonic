@@ -27,6 +27,25 @@ export function formatRelativeTime(date: Date): string {
   }
 }
 
+export function formatSessionTitle(date: Date): string {
+  const now = new Date();
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((startOfDay(now) - startOfDay(date)) / (24 * 60 * 60 * 1000));
+  const time = date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+
+  if (days === 0) {
+    return `Today at ${time}`;
+  } else if (days === 1) {
+    return `Yesterday at ${time}`;
+  }
+  const day = date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric',
+  });
+  return `${day} at ${time}`;
+}
+
 export const zodToJsonSchemaBody = (schema: ZodType) => {
   return z.toJSONSchema(schema) as any;
 };

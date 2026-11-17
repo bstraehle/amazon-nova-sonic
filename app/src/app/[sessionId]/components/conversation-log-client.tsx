@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { ChevronLeft, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { Message } from '@/common/messageRepository';
 import { Session } from '@/common/sessionRepository';
@@ -62,18 +62,29 @@ export default function ConversationLogClient({ session, messages, conversations
   }, [messages, messagesWithoutSystemPrompt, showSystemPrompt, session.systemPrompt, session.createdAt]);
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-dvh bg-gray-50">
       {/* Sidebar */}
-      <ConversationList conversations={conversations} currentSessionId={session.sessionId} />
+      <ConversationList
+        conversations={conversations}
+        currentSessionId={session.sessionId}
+        className="hidden md:block"
+      />
 
       {/* Main Chat Panel */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <div className="p-4 border-b border-gray-200 bg-white">
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <Link
+                href="/history"
+                className="md:hidden mb-1 flex items-center text-sm text-gray-600 hover:text-gray-800"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                History
+              </Link>
               <h1 className="text-xl font-semibold">Conversation Log</h1>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 truncate">
                 {new Date(session.createdAt).toLocaleString()} - Session ID: {session.sessionId}
               </p>
             </div>
