@@ -23,7 +23,7 @@ export default async function SignInPage() {
               className={cn(buttonVariants({ size: 'lg' }), 'w-full h-12')}
               prefetch={false} // prevent CORS error
             >
-              Sign up / Sign in
+              Sign in
             </Link>
 
             <p className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
