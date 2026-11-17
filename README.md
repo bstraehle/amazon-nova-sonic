@@ -44,6 +44,7 @@ Configurable parameters include:
 
 * Deployment region (default: inherits IAM session)
 * Nova Sonic model region (default: us-east-1)
+* Cognito self sign-up (disabled in this repository; the stack default is enabled)
 * Email domains allowed to sign up to Cognito (default: all allowed)
 
 See the file for details.
@@ -102,11 +103,11 @@ This completes CDK deployment. Next, we'll explain how to use the application.
 
 ## Usage
 
-### Sign Up / Login
-When you open the URL in a browser, a login button will be displayed. Follow the on-screen instructions to create a Cognito user and log in.
+### Login
+When you open the URL in a browser, a login button will be displayed. Self sign-up is disabled, so an administrator first creates the user in the stack's Cognito user pool (Amazon Cognito console > User pools > Create user). Then log in with that user.
 
 > [!IMPORTANT]
-> By default, anyone who knows the URL can register as a user. It's recommended to restrict sign-up eligible email domains in [3. Deployment Parameter Configuration](#3-deployment-parameter-configuration).
+> If you enable self sign-up (`selfSignUpEnabled` in [cdk.ts](cdk/bin/cdk.ts)), anyone who knows the URL can register as a user. In that case it's recommended to restrict sign-up eligible email domains in [2. Deployment Parameter Configuration](#2-deployment-parameter-configuration).
 
 After logging in, the following screen will be displayed:
 
@@ -129,7 +130,7 @@ Press the `Stop Voice Chat` button to end the conversation. The conversation wil
 
 ### Viewing Conversation Logs
 
-Click on history in the sidebar to view conversation history. Since long-term memory is included in the system prompt at that time, you can also see how memories change over time.
+Click on history in the sidebar to view conversation history.
 
 ### MCP Support
 

@@ -10,6 +10,7 @@ new CdkStack(app, 'ServerlessNovaSonicChatStack', {
     region: 'us-east-1',
   },
   bedrockRegion: 'us-east-1',
+  selfSignUpEnabled: false,
   // allowedEmailDomainList: ["example.com"],
 });
 

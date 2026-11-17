@@ -43,7 +43,7 @@ export default async function ConversationLogPage({ params }: ConversationLogPag
 
   return (
     <ConversationLogClient
-      session={data.session}
+      session={{ sessionId: data.session.sessionId, createdAt: data.session.createdAt }}
       messages={data.messages}
       userId={authSession.userId}
       conversations={data.conversations}

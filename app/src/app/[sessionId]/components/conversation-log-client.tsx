@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, Plus } from 'lucide-react';
 import Link from 'next/link';
@@ -20,14 +19,13 @@ interface Conversation {
 }
 
 interface ConversationLogClientProps {
-  session: Session;
+  session: Pick<Session, 'sessionId' | 'createdAt'>;
   messages: Message[];
   userId: string;
   conversations: Conversation[];
 }
 
 export default function ConversationLogClient({ session, messages, conversations }: ConversationLogClientProps) {
-  const [showSystemPrompt, setShowSystemPrompt] = useState(false);
   const isHydrated = useIsHydrated();
 
   const messagesWithoutSystemPrompt = useMemo(() => {
@@ -35,21 +33,9 @@ export default function ConversationLogClient({ session, messages, conversations
   }, [messages]);
 
   const showingMessages = useMemo(() => {
-    let baseMessages: Message[];
-    if (showSystemPrompt && session.systemPrompt) {
-      const systemMessage: Message = {
-        role: 'system',
-        content: session.systemPrompt,
-        timestamp: session.createdAt,
-      };
-      baseMessages = [systemMessage, ...messagesWithoutSystemPrompt];
-    } else {
-      baseMessages = messagesWithoutSystemPrompt;
-    }
-
     // Merge consecutive messages with the same role
     const mergedMessages: Message[] = [];
-    for (const message of baseMessages) {
+    for (const message of messagesWithoutSystemPrompt) {
       const lastMessage = mergedMessages[mergedMessages.length - 1];
       if (lastMessage && lastMessage.role === message.role) {
         // Merge with the previous message
@@ -63,7 +49,7 @@ export default function ConversationLogClient({ session, messages, conversations
     }
 
     return mergedMessages;
-  }, [messages, messagesWithoutSystemPrompt, showSystemPrompt, session.systemPrompt, session.createdAt]);
+  }, [messagesWithoutSystemPrompt]);
 
   return (
     <div className="flex h-dvh bg-background">
@@ -104,18 +90,8 @@ export default function ConversationLogClient({ session, messages, conversations
           </div>
         </div>
 
-        {/* System Prompt Toggle */}
-        <div className="px-4 py-2 border-b bg-background flex items-center justify-between gap-2">
-          {session.systemPrompt ? (
-            <div className="flex items-center space-x-2">
-              <Switch id="system-prompt" checked={showSystemPrompt} onCheckedChange={setShowSystemPrompt} />
-              <label htmlFor="system-prompt" className="text-sm font-medium">
-                Show System Prompt
-              </label>
-            </div>
-          ) : (
-            <span />
-          )}
+        {/* Transcript Actions */}
+        <div className="px-4 py-2 border-b bg-background flex items-center justify-end gap-2">
           <TranscriptActions messages={showingMessages} fileName="demobank-conversation.txt" />
         </div>
 
