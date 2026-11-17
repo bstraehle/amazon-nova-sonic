@@ -4,14 +4,14 @@ import { z } from 'zod';
 import { SessionRepository } from '@/common/sessionRepository';
 import { BedrockAgentCoreClient, InvokeAgentRuntimeCommand } from '@aws-sdk/client-bedrock-agentcore';
 import { authActionClient } from '@/lib/safe-action';
-import { mcpConfigSchema } from '@/common/schemas';
+import { EmptyMcpConfig } from '@/common/schemas';
+import { defaultSystemPrompt } from '@/lib/systemPrompt';
+import { englishVoices } from '@/lib/voices';
 
 const agentCore = new BedrockAgentCoreClient({});
 
 const startNovaSonicSessionSchema = z.object({
-  systemPrompt: z.string(),
-  voiceId: z.string(),
-  mcpConfig: mcpConfigSchema,
+  voiceId: z.string().refine((id) => englishVoices.some((voice) => voice.id === id), 'Unsupported voice'),
 });
 
 export const startNovaSonicSession = authActionClient
@@ -21,15 +21,15 @@ export const startNovaSonicSession = authActionClient
     const sessionRepository = new SessionRepository();
 
     // Create new session in DynamoDB
-    const session = await sessionRepository.createSession(userId, parsedInput.mcpConfig);
+    const session = await sessionRepository.createSession(userId, EmptyMcpConfig);
 
     // Prepare payload for Nova Sonic Lambda
     const payload = {
       sessionId: session.sessionId,
       userId: session.userId,
-      systemPrompt: parsedInput.systemPrompt,
+      systemPrompt: defaultSystemPrompt,
       voiceId: parsedInput.voiceId,
-      mcpConfig: parsedInput.mcpConfig,
+      mcpConfig: EmptyMcpConfig,
     };
 
     try {
@@ -45,7 +45,6 @@ export const startNovaSonicSession = authActionClient
       return {
         success: true,
         sessionId: session.sessionId,
-        systemPrompt: parsedInput.systemPrompt,
         message: 'Nova Sonic processing initiated successfully',
       };
     } catch (error) {
