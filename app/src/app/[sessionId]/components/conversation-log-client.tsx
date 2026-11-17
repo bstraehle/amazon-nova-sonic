@@ -10,6 +10,9 @@ import { Message } from '@/common/messageRepository';
 import { Session } from '@/common/sessionRepository';
 import ConversationList from '@/components/conversation-list';
 import Messages from '@/components/messages';
+import ThemeToggle from '@/components/theme-toggle';
+import TranscriptActions from '@/components/transcript-actions';
+import { useIsHydrated } from '@/lib/useIsHydrated';
 
 interface Conversation {
   id: string;
@@ -25,6 +28,7 @@ interface ConversationLogClientProps {
 
 export default function ConversationLogClient({ session, messages, conversations }: ConversationLogClientProps) {
   const [showSystemPrompt, setShowSystemPrompt] = useState(false);
+  const isHydrated = useIsHydrated();
 
   const messagesWithoutSystemPrompt = useMemo(() => {
     return messages.filter((m) => m.role !== 'system');
@@ -62,7 +66,7 @@ export default function ConversationLogClient({ session, messages, conversations
   }, [messages, messagesWithoutSystemPrompt, showSystemPrompt, session.systemPrompt, session.createdAt]);
 
   return (
-    <div className="flex h-dvh bg-gray-50">
+    <div className="flex h-dvh bg-background">
       {/* Sidebar */}
       <ConversationList
         conversations={conversations}
@@ -71,43 +75,49 @@ export default function ConversationLogClient({ session, messages, conversations
       />
 
       {/* Main Chat Panel */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <main className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 bg-white">
+        <div className="p-4 border-b bg-card">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <Link
                 href="/history"
-                className="md:hidden mb-1 flex items-center text-sm text-gray-600 hover:text-gray-800"
+                className="md:hidden mb-1 flex items-center text-sm text-muted-foreground hover:text-foreground"
               >
                 <ChevronLeft className="w-4 h-4" />
                 History
               </Link>
               <h1 className="text-xl font-semibold">Conversation Log</h1>
-              <p className="text-sm text-gray-600 truncate">
-                {new Date(session.createdAt).toLocaleString()} - Session ID: {session.sessionId}
+              <p className="text-sm text-muted-foreground truncate">
+                {isHydrated ? new Date(session.createdAt).toLocaleString() : ' '} - Session ID: {session.sessionId}
               </p>
             </div>
-            <Link href="/">
-              <Button variant="outline" size="sm">
-                <Plus className="w-4 h-4 mr-2" />
-                New Session
-              </Button>
-            </Link>
+            <div className="flex items-center gap-2 shrink-0">
+              <ThemeToggle />
+              <Link href="/">
+                <Button variant="outline" size="sm">
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Session
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
 
         {/* System Prompt Toggle */}
-        {session.systemPrompt && (
-          <div className="p-4 border-b border-gray-200 bg-gray-50">
+        <div className="px-4 py-2 border-b bg-background flex items-center justify-between gap-2">
+          {session.systemPrompt ? (
             <div className="flex items-center space-x-2">
               <Switch id="system-prompt" checked={showSystemPrompt} onCheckedChange={setShowSystemPrompt} />
               <label htmlFor="system-prompt" className="text-sm font-medium">
                 Show System Prompt
               </label>
             </div>
-          </div>
-        )}
+          ) : (
+            <span />
+          )}
+          <TranscriptActions messages={showingMessages} fileName="demobank-conversation.txt" />
+        </div>
 
         {/* Messages */}
         <div className="flex-1 overflow-hidden">
@@ -115,7 +125,7 @@ export default function ConversationLogClient({ session, messages, conversations
             <Messages messages={showingMessages} />
           </ScrollArea>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

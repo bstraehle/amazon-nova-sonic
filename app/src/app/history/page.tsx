@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth';
 import { SessionRepository } from '@/common/sessionRepository';
 import { Button } from '@/components/ui/button';
 import { ConversationItems } from '@/components/conversation-list';
+import ThemeToggle from '@/components/theme-toggle';
 
 export default async function HistoryPage() {
   const authSession = await getSession();
@@ -15,17 +16,20 @@ export default async function HistoryPage() {
   }));
 
   return (
-    <div className="flex flex-col h-dvh bg-gray-50">
+    <main className="flex flex-col h-dvh bg-background">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 bg-white flex items-center justify-between">
+      <header className="p-4 border-b bg-card flex items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">Conversation History</h1>
-        <Link href="/">
-          <Button variant="outline" size="sm">
-            <Plus className="w-4 h-4 mr-2" />
-            New Session
-          </Button>
-        </Link>
-      </div>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Link href="/">
+            <Button variant="outline" size="sm">
+              <Plus className="w-4 h-4 mr-2" />
+              New Session
+            </Button>
+          </Link>
+        </div>
+      </header>
 
       {/* Conversations */}
       <div className="flex-1 overflow-y-auto p-4">
@@ -33,6 +37,6 @@ export default async function HistoryPage() {
           <ConversationItems conversations={conversations} />
         </div>
       </div>
-    </div>
+    </main>
   );
 }

@@ -35,7 +35,11 @@ const TimerDisplay = memo(function TimerDisplay({ isActive, sessionStartTime }: 
   }, [isActive, sessionStartTime]);
 
   return (
-    <span className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+    <span
+      role="timer"
+      aria-label="Elapsed time"
+      className="text-sm tabular-nums text-muted-foreground bg-muted px-3 py-1 rounded-full"
+    >
       {Math.floor(elapsedTime / 60)}:{(elapsedTime % 60).toString().padStart(2, '0')}
     </span>
   );

@@ -110,11 +110,9 @@ export const useSpeechToSpeech = (userId: string) => {
   const micErrorRef = useRef<string | null>(null);
   const [errorMessages, setErrorMessages] = useState<string[]>([]);
   const router = useRouter();
-  console.log(`re-rendered ${JSON.stringify({ isActive, isLoading })}`);
 
   const { execute: executeSpeechToSpeech } = useAction(startNovaSonicSession, {
     onSuccess: async (res) => {
-      console.log('Speech-to-speech Lambda invoked successfully:', res);
       try {
         setSessionId(res.data.sessionId);
         await connectToAppSync(res.data.sessionId);
@@ -174,7 +172,6 @@ export const useSpeechToSpeech = (userId: string) => {
   };
 
   const initAudio = async () => {
-    console.log('initAudio');
     const audioPlayer = new AudioPlayer();
     audioPlayerRef.current = audioPlayer;
     audioInputQueue.current = [];
@@ -228,7 +225,6 @@ export const useSpeechToSpeech = (userId: string) => {
   };
 
   const connectToAppSync = async (sessionId: string) => {
-    console.log(`/${NAMESPACE}/user/${userId}/${sessionId}`);
     const channel = await events.connect(`/${NAMESPACE}/user/${userId}/${sessionId}`);
     channelRef.current = channel;
     const sequencer = new AudioEventSequencer((chunks) => {
@@ -244,7 +240,6 @@ export const useSpeechToSpeech = (userId: string) => {
 
     channel.subscribe({
       next: (data: { event: unknown; id: string }) => {
-        console.log(data.event);
         const { data: event, error } = SpeechToSpeechEventSchema.safeParse(data.event);
         if (error) {
           console.log(error);
@@ -299,7 +294,6 @@ export const useSpeechToSpeech = (userId: string) => {
   };
 
   const startRecording = async () => {
-    console.log(`startRecording`);
     const audioPlayer = audioPlayerRef.current;
     const audioRecorder = audioRecorderRef.current;
     if (!audioPlayer || !audioRecorder || !systemPromptRef.current) {
@@ -328,7 +322,6 @@ export const useSpeechToSpeech = (userId: string) => {
   };
 
   const stopRecording = async () => {
-    console.log('stopRecording');
     setIsActive(false);
 
     if (audioRecorderRef.current) {
@@ -372,7 +365,6 @@ export const useSpeechToSpeech = (userId: string) => {
 
   const closeSession = useCallback(
     async (kind: SessionEndKind = 'user') => {
-      console.log('closeSession');
       if (!channelRef.current) return;
 
       setSessionEnd(kind);

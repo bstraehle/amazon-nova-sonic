@@ -1,38 +1,12 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import Messages from '@/components/messages';
-import { Mic, StopCircle, Ear, LogOut, MicOff, History, Loader2, Volume2, type LucideIcon } from 'lucide-react';
-import Link from 'next/link';
-import { type AudioSource, type SessionEndKind, useSpeechToSpeech } from '../useSpeechToSpeech';
+import { useSpeechToSpeech } from '../useSpeechToSpeech';
+import { useMicrophonePermission } from '../useSpeechToSpeech/useMicrophonePermission';
 import { useVoiceActivity } from '../useSpeechToSpeech/useVoiceActivity';
 import { toast } from 'sonner';
-import TimerDisplay from './timer-display';
-import VoiceVisualizer from './voice-visualizer';
+import VoiceChatView, { type ConversationState } from './voice-chat-view';
 import { EmptyMcpConfig } from '@/common/schemas';
-import { englishVoices } from '@/lib/voices';
-import { cn } from '@/lib/utils';
-
-type ConversationState = 'listening' | 'thinking' | 'speaking' | 'muted';
-
-const conversationStates: Record<
-  ConversationState,
-  { label: string; hint: string; icon: LucideIcon; source: AudioSource | null }
-> = {
-  listening: { label: 'Listening...', hint: 'How can I help you?', icon: Ear, source: 'input' },
-  thinking: { label: 'Thinking...', hint: 'Working on your answer', icon: Loader2, source: null },
-  speaking: { label: 'Speaking', hint: 'Start talking to interrupt', icon: Volume2, source: 'output' },
-  muted: { label: 'Microphone muted', hint: 'Unmute to continue', icon: MicOff, source: null },
-};
-
-const sessionEndMessages: Record<SessionEndKind, string> = {
-  user: 'You ended the conversation.',
-  timeLimit: 'The session reached its time limit.',
-  server: 'The session has ended.',
-  error: 'The session ended because of a problem on our side. Please try again.',
-};
 
 const getConversationState = (state: {
   isAssistantAudible: boolean;
@@ -184,8 +158,8 @@ If you suspect unauthorized or fraudulent activity on your DemoBank high yield s
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
   const [voiceId, setVoiceId] = useState('matthew');
   const isActiveRef = useRef(isActive);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const { input: isUserAudible, output: isAssistantAudible } = useVoiceActivity(getAnalyser, isActive);
+  const microphonePermission = useMicrophonePermission();
 
   const transcript = useMemo(() => messages.filter((m) => m.role !== 'system'), [messages]);
   const lastRole = transcript[transcript.length - 1]?.role;
@@ -195,23 +169,12 @@ If you suspect unauthorized or fraudulent activity on your DemoBank high yield s
     isAwaitingReply: lastRole === 'user' || (lastRole === 'assistant' && isAssistantSpeaking),
     isMuted,
   });
-  const status = conversationStates[conversationState];
-  const StatusIcon = status.icon;
-  const endMessage = sessionEnd ? sessionEndMessages[sessionEnd] : null;
-  const hasEndedTranscript = !isActive && !isLoading && endMessage !== null && transcript.length > 0;
 
   useEffect(() => {
     if (errorMessages.length > 0) {
       toast.error(errorMessages[errorMessages.length - 1]);
     }
   }, [errorMessages]);
-
-  // Auto-scroll to bottom when messages update
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
 
   useEffect(() => {
     isActiveRef.current = isActive;
@@ -241,176 +204,24 @@ If you suspect unauthorized or fraudulent activity on your DemoBank high yield s
     closeSession();
   };
 
-  const voiceSelect = (
-    <Select value={voiceId} onValueChange={setVoiceId}>
-      <SelectTrigger className="w-auto min-w-48">
-        <SelectValue placeholder="Select voice" />
-      </SelectTrigger>
-      <SelectContent>
-        {englishVoices.map((voice) => (
-          <SelectItem key={voice.id} value={voice.id}>
-            {voice.label} ({voice.language}, {voice.gender})
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-
   return (
-    <div className="flex h-dvh bg-gray-50">
-      {/* Main Chat Panel */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-200 bg-white flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-semibold text-[#1E5AA8]">Voice Assistant</h1>
-            {isActive && <TimerDisplay isActive={isActive} sessionStartTime={sessionStartTime} />}
-          </div>
-          <div className="flex items-center gap-4">
-            {!isActive && !isLoading && (
-              <Link
-                href="/history"
-                aria-label="History"
-                className="flex items-center text-gray-600 hover:text-gray-800"
-              >
-                <History className="h-4 w-4 md:mr-2" />
-                <span className="hidden md:inline">History</span>
-              </Link>
-            )}
-            <Link href="/api/auth/sign-out" className="cursor-default flex items-center text-gray-600 hover:text-gray-800" prefetch={false}>
-              <LogOut className="h-4 w-4 md:mr-2" />
-              <span className="hidden md:inline">Sign Out</span>
-            </Link>
-          </div>
-        </div>
-
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Loading State */}
-          {isLoading && (
-            <div className="flex-1 flex flex-col items-center justify-center p-8">
-              <div className="w-32 h-32 border-8 border-gray-200 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-              <p className="text-gray-600">Initializing voice chat...</p>
-            </div>
-          )}
-
-          {/* Active or Ended State with Transcript */}
-          {!isLoading && (isActive || hasEndedTranscript) && (
-            <div className="flex-1 flex flex-col overflow-hidden">
-              {isActive ? (
-                /* Status indicator */
-                <div
-                  className={cn(
-                    'p-4 border-b flex flex-col items-center gap-2',
-                    conversationState === 'muted'
-                      ? 'bg-gray-100 border-gray-200 text-gray-600'
-                      : 'bg-blue-50 border-blue-100 text-[#1E5AA8]'
-                  )}
-                >
-                  <VoiceVisualizer
-                    getAnalyser={getAnalyser}
-                    source={status.source}
-                    className={conversationState === 'thinking' ? 'animate-pulse' : undefined}
-                  />
-                  <div className="flex items-center gap-2 text-sm">
-                    <StatusIcon className={cn('w-5 h-5', conversationState === 'thinking' && 'animate-spin')} />
-                    <p>
-                      <span className="font-medium">{status.label}</span> {status.hint}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                /* Session end notice */
-                <div
-                  className={cn(
-                    'p-4 border-b text-center text-sm',
-                    sessionEnd === 'error'
-                      ? 'bg-red-50 border-red-100 text-red-800'
-                      : 'bg-gray-100 border-gray-200 text-gray-700'
-                  )}
-                >
-                  <span className="font-medium">Conversation ended.</span> {endMessage}
-                  {sessionId && (
-                    <Link href={`/${sessionId}`} className="ml-2 underline">
-                      View in history
-                    </Link>
-                  )}
-                </div>
-              )}
-              {/* Transcript */}
-              <div ref={scrollRef} className="flex-1 overflow-y-auto p-4">
-                <Messages messages={transcript} isAssistantSpeaking={isAssistantSpeaking} isActive={isActive} />
-              </div>
-            </div>
-          )}
-
-          {/* Ready State */}
-          {!isLoading && !isActive && !hasEndedTranscript && (
-            <div className="flex-1 flex flex-col items-center justify-center p-8">
-              <div className="w-32 h-32 mx-auto mb-4 bg-[#1E5AA8]/10 rounded-full flex items-center justify-center">
-                <Mic className="w-16 h-16 text-[#1E5AA8]" />
-              </div>
-              <p className="text-gray-600 mb-6">Ready to start a voice conversation</p>
-              {endMessage && sessionEnd !== 'user' && (
-                <p className="text-sm text-gray-500 mb-6 text-center">{endMessage}</p>
-              )}
-
-              {/* Voice Selection */}
-              <div className="mb-6">{voiceSelect}</div>
-            </div>
-          )}
-        </div>
-
-        {/* Voice Controls */}
-        <div className="p-6 border-t border-gray-200 bg-white">
-          <div className="flex items-center justify-center">
-            {!isActive ? (
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full">
-                {hasEndedTranscript && voiceSelect}
-                <Button onClick={handleStartSession} disabled={isLoading} className="w-full max-w-xs h-12" size="lg">
-                  {!isLoading ? (
-                    <>
-                      <Mic className="mr-2 h-5 w-5" />
-                      {hasEndedTranscript ? 'Start New Conversation' : 'Start Voice Chat'}
-                    </>
-                  ) : (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                  )}
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Button
-                  onClick={toggleMute}
-                  disabled={isLoading}
-                  variant={isMuted ? 'secondary' : 'outline'}
-                  size="lg"
-                  className="h-12"
-                >
-                  {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-                </Button>
-                <Button
-                  onClick={handleCloseSession}
-                  disabled={isLoading}
-                  variant="destructive"
-                  className="h-12"
-                  size="lg"
-                >
-                  {!isLoading ? (
-                    <>
-                      <StopCircle className="mr-2 h-5 w-5" />
-                      Stop Voice Chat
-                    </>
-                  ) : (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                  )}
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-
-      </div>
-    </div>
+    <VoiceChatView
+      isActive={isActive}
+      isLoading={isLoading}
+      isMuted={isMuted}
+      isAssistantSpeaking={isAssistantSpeaking}
+      conversationState={conversationState}
+      transcript={transcript}
+      sessionId={sessionId}
+      sessionEnd={sessionEnd}
+      sessionStartTime={sessionStartTime}
+      microphonePermission={microphonePermission}
+      voiceId={voiceId}
+      onVoiceChange={setVoiceId}
+      onStart={handleStartSession}
+      onStop={handleCloseSession}
+      onToggleMute={toggleMute}
+      getAnalyser={getAnalyser}
+    />
   );
 }

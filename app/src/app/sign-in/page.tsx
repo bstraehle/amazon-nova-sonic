@@ -1,26 +1,38 @@
 import Link from 'next/link';
+import { Mic } from 'lucide-react';
+import BrandMark from '@/components/brand-mark';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export default async function SignInPage() {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center sm:px-6 lg:px-8">
-
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white dark:bg-gray-800 py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-gray-200 dark:border-gray-700">
-          <div className="flex flex-col items-center">
-            <p className="mb-6 text-center text-sm text-gray-600 dark:text-gray-300">
-              DemoBank Voice Assistant (STS)
+    <main className="min-h-dvh bg-background flex items-center justify-center px-4 sm:px-6 lg:px-8">
+      <div className="w-full max-w-md">
+        <div className="bg-card text-card-foreground py-8 px-6 shadow rounded-xl sm:px-10 border">
+          <div className="flex flex-col items-center text-center">
+            <BrandMark className="size-14 rounded-2xl mb-4" />
+            <h1 className="text-2xl font-semibold">DemoBank</h1>
+            <p className="mt-1 text-sm font-medium text-primary">Voice Assistant (STS)</p>
+            <p className="mt-4 mb-6 text-sm text-muted-foreground">
+              Your AI-powered banking assistant for DemoBank high yield savings accounts. Ask a question out loud and
+              get a spoken answer.
             </p>
 
             <Link
               href={`/api/auth/sign-in`}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-[#1E5AA8] hover:bg-[#164785] dark:bg-[#1E5AA8] dark:hover:bg-[#164785] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1E5AA8] dark:focus:ring-offset-gray-800"
+              className={cn(buttonVariants({ size: 'lg' }), 'w-full h-12')}
               prefetch={false} // prevent CORS error
             >
               Sign up / Sign in
             </Link>
+
+            <p className="mt-4 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Mic className="size-3.5 shrink-0" />
+              You&apos;ll need a microphone.
+            </p>
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
