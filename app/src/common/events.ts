@@ -24,8 +24,9 @@ export class AudioEventSequencer {
     if (seq == this.lastProcessedSequence + 1) {
       processNow = true;
     } else if (seq - this.lastProcessedSequence > 2) {
-      // if a sequence is missing for more than 3 events, we ignore it and process the current sequence
+      // if a sequence is missing for more than 3 events, we ignore it and process what is queued, oldest first
       processNow = true;
+      seq = Math.min(...Object.keys(this.inputQueue).map(Number));
     }
 
     if (processNow) {

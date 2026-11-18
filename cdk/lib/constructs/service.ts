@@ -39,7 +39,7 @@ export class Service extends Construct {
       exclude: [
         ...readFileSync(join('..', 'app', '.dockerignore'))
           .toString()
-          .split('\n'),
+          .split(/\r?\n/),
         'src/agent',
       ],
       tagPrefix: 'agent-',

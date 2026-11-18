@@ -323,7 +323,22 @@ exports[`Snapshot test: MainStack 1`] = `
         "ClientId": {
           "Ref": "AuthUserPoolClientC635291F",
         },
-        "UseCognitoProvidedValues": true,
+        "Settings": {
+          "components": {
+            "pageBackground": {
+              "darkMode": {
+                "color": "000000ff",
+              },
+              "image": {
+                "enabled": false,
+              },
+              "lightMode": {
+                "color": "ffffffff",
+              },
+            },
+          },
+        },
+        "UseCognitoProvidedValues": false,
         "UserPoolId": {
           "Ref": "AuthUserPool8115E87F",
         },

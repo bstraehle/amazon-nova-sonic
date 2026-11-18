@@ -1,19 +1,21 @@
-# Serverless Nova Sonic Chat App
+# DemoBank Voice Assistant
 
-This is a sample implementation for deploying a Nova Sonic application using serverless AWS services.
+A speech-to-speech voice assistant for the fictional DemoBank, built on Amazon Nova 2 Sonic and serverless AWS services. It answers spoken questions about DemoBank high yield savings accounts and declines everything else.
 
-<!-- Test comment for dummy PR -->
+The project started from an AWS sample for deploying a Nova Sonic application.
 
 ![Architecture](./docs/imgs/architecture.png)
 
 ## Key Features
 
-- Implementation of serverless real-time communication between server and client using AppSync Events
-- Reference to past conversation history
-- ToolUse implementation
-- MCP (Model Context Protocol) support - Connect to various external services and tools via MCP servers
-- A conversation session can continue up to 8 hours (yes, not 8 minutes)
-- Chat UI implementation using Next.js + shadcn
+- Real-time voice conversation in the browser, with serverless communication between client and agent over AppSync Events
+- Live status (listening, thinking, speaking, muted) with a waveform, and a transcript with timestamps
+- Conversation history, with copy and download of each transcript
+- The assistant's instructions and knowledge live in one server-side system prompt
+- Sign-in through Amazon Cognito; users are created by an administrator
+- ToolUse and MCP (Model Context Protocol) support in the agent
+- Each conversation is limited to 3 minutes
+- UI built with Next.js + shadcn, usable on phones and computers
 
 ## Deployment Instructions
 
@@ -50,7 +52,7 @@ Configurable parameters include:
 See the file for details.
 
 ### 3. Enable Bedrock Foundation Models
-From the [Amazon Bedrock Management Console](https://console.aws.amazon.com/bedrock/home#/modelaccess) in the `bedrockRegion` you specified in the step#2 (us-east-1 by default), enable Nova Sonic model.
+From the [Amazon Bedrock Management Console](https://console.aws.amazon.com/bedrock/home#/modelaccess) in the `bedrockRegion` you specified in the step#2 (us-east-1 by default), enable the Nova 2 Sonic model.
 
 ### 4. CDK Bootstrap
 
@@ -82,19 +84,19 @@ cd cdk
 npx cdk deploy
 ```
 
-Deployment typically takes about 5 minutes.
+Deployment typically takes about 5 minutes. The first deployment from a machine that is not ARM-based takes longer, because the agent image is built for ARM64 under emulation.
 
 Upon successful deployment, stack output will be displayed as follows:
 
 ```
- ✅  NovaSonicWebappDemoStack
+ ✅  ServerlessNovaSonicChatStack
 
-✨  Deployment time: 246.22s
+✨  Deployment time: 164.16s
 
 Outputs:
-NovaSonicWebappDemoStack.AgentHandlerFunctionName87E3B26A = CdkStack-AgentHandlerF75982B4-sr8j8OF2uqDt
+ServerlessNovaSonicChatStack.AgentAgentCoreRuntimeArn43CC4D6A = arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/...
 ...
-NovaSonicWebappDemoStack.ServiceApiEndpointC0AA9658 = https://1234567.execute-api.us-east-1.amazonaws.com
+ServerlessNovaSonicChatStack.ServiceApiEndpointC0AA9658 = https://1234567.execute-api.us-east-1.amazonaws.com
 ```
 
 Open the `ServiceApiEndpoint*` URL in your browser. If a login screen appears, deployment was successful.
@@ -115,22 +117,17 @@ After logging in, the following screen will be displayed:
 
 ### Voice Conversation
 
-Press the `Start Voice Chat` button to begin a conversation. You can configure the system prompt and voice before starting.
-Once the conversation begins, speak to it saying "Hello" or similar.
+Choose a voice, then press the `Start Voice Chat` button and allow microphone access when the browser asks. Once the status shows "Listening", ask a question such as "How do I open an account?".
 
-Before starting a conversation, you can customize the following:
+* Voice: Two US English Nova Sonic [voices](https://docs.aws.amazon.com/nova/latest/userguide/available-voices.html) are selectable. The list is in [voices.ts](app/src/lib/voices.ts).
+* System prompt: The assistant's behavior and everything it knows about DemoBank are defined in [systemPrompt.ts](app/src/lib/systemPrompt.ts). It is applied on the server and cannot be changed from the browser.
+* You can interrupt the assistant by speaking, and mute the microphone with the mute button or the `M` key.
 
-* System Prompt: Adjust Nova Sonic's speaking style and behavior
-* Voice: Select Nova Sonic's [voice type](https://docs.aws.amazon.com/nova/latest/userguide/available-voices.html). Currently only 3 English voices are selectable, but Nova Sonic itself supports French, Spanish, German, and more languages are planned for the future.
-
-Press the `Stop Voice Chat` button to end the conversation. The conversation will also automatically end in the following cases:
-
-1. After more than 10 minutes have passed
-2. When left idle without speaking for several minutes
+Press the `Stop Voice Chat` button to end the conversation. The conversation also ends automatically after 3 minutes. The transcript stays on screen afterwards and can be copied or downloaded.
 
 ### Viewing Conversation Logs
 
-Click on history in the sidebar to view conversation history.
+Open `History` from the header to view past conversations.
 
 ### MCP Support
 
@@ -140,9 +137,9 @@ This agent now supports MCP (Model Context Protocol), enabling integration with 
 - Extend capabilities through community-developed MCP servers
 
 **Important Notes:**
+- No MCP servers are configured by default. The configuration is set on the server, in [actions.ts](app/src/app/%28root%29/actions.ts), and is never accepted from the browser, because the agent runs the commands it names
 - Supports MCP servers that can be executed via `uvx` or `npx`
 - Tools are executed synchronously, so long-running tools may not be suitable
-- **Resource Requirements**: MCP functionality may require additional memory and storage. If you encounter resource limitations, you can adjust the Lambda function's memory size (default: 256MB) and ephemeral storage size (default: 512MB) in `cdk/lib/constructs/agent.ts`
 
 An example mcp config is below:
 
@@ -166,9 +163,23 @@ An example mcp config is below:
 * The app works on mobile devices as well as computers (responsive design).
 * For Nova Sonic details, see [agent/README.md](app/src/agent/README.md)
 
+## Development
+
+Run these from `app/` after `npm ci`:
+
+```sh
+npm test            # unit tests
+npm run lint
+npx tsc --noEmit
+```
+
+`npm run build` needs the placeholder auth variables that the [Dockerfile](app/Dockerfile) sets (`USER_POOL_CLIENT_ID`, `USER_POOL_ID`, `AMPLIFY_APP_ORIGIN`, `COGNITO_DOMAIN`). To run the frontend locally against deployed resources, see [app/README.md](app/README.md).
+
+From `cdk/`, `npm test` runs the stack snapshot test and `npx cdk diff` shows what a deployment would change.
+
 ## Cost
 
-Assuming **10 minutes/session**, the cost per session (USD) is as follows. Note that the dimensions such as token counts per session are examples and will vary depending on your actual use case.
+The table below is the original sample's estimate for a **10 minutes/session** conversation. This app limits a conversation to 3 minutes, so a session costs proportionally less. The cost per session (USD) is as follows. Note that the dimensions such as token counts per session are examples and will vary depending on your actual use case.
 
 | AWS service        | Dimensions                               | Cost [USD/session] |
 |--------------------|------------------------------------------|------------------|
@@ -199,10 +210,6 @@ To delete resources, run the following command:
 cd cdk
 npx cdk destroy --all
 ```
-
-## Security
-
-See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more information.
 
 ## License
 
