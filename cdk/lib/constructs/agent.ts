@@ -27,7 +27,7 @@ export class Agent extends Construct {
       file: 'agent.Dockerfile',
       exclude: readFileSync(join('..', 'app', '.dockerignore'))
         .toString()
-        .split('\n'),
+        .split(/\r?\n/),
     });
     const role = new Role(this, 'Role', {
       assumedBy: new ServicePrincipal('bedrock-agentcore.amazonaws.com'),
